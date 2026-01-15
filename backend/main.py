@@ -4,14 +4,13 @@ Uses CSV data directly with pandas. No database required.
 Provides real-time SHAP-like explanations for drug recommendations.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+CSV_PATH = "data/ehr_synthetic_max_features.csv"
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
-import numpy as np
-from io import StringIO
-import os
 
 app = FastAPI(
     title="Drug Recommendation API",
@@ -30,6 +29,17 @@ app.add_middleware(
 
 # Global DataFrame to store EHR data
 ehr_data: Optional[pd.DataFrame] = None
+
+@app.on_event("startup")
+def load_csv_on_startup():
+    global ehr_data
+    try:
+        ehr_data = pd.read_csv(CSV_PATH)
+        print(f"✅ Loaded EHR dataset with {len(ehr_data)} records")
+        print(f"📊 Columns: {list(ehr_data.columns)}")
+    except Exception as e:
+        print("❌ Failed to load EHR CSV:", e)
+        raise RuntimeError("EHR dataset could not be loaded")
 
 
 # === Pydantic Models ===
@@ -359,61 +369,11 @@ async def get_data_status():
     )
 
 
-@app.post("/data/upload")
-async def upload_csv(file: UploadFile = File(...)):
-    """Upload CSV file containing EHR data."""
-    global ehr_data
-    
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be a CSV")
-    
-    try:
-        contents = await file.read()
-        csv_text = contents.decode('utf-8')
-        ehr_data = pd.read_csv(StringIO(csv_text))
-        
-        # Validate required columns
-        required_cols = ["age", "gender", "symptoms"]
-        missing_cols = [col for col in required_cols if col not in ehr_data.columns]
-        if missing_cols:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Missing required columns: {missing_cols}"
-            )
-        
-        return {
-            "success": True,
-            "message": f"Loaded {len(ehr_data)} records",
-            "columns": list(ehr_data.columns),
-            "record_count": len(ehr_data)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error parsing CSV: {str(e)}")
-
-
-@app.post("/data/load-text")
-async def load_csv_text(csv_content: str):
-    """Load CSV data from text content."""
-    global ehr_data
-    
-    try:
-        ehr_data = pd.read_csv(StringIO(csv_content))
-        return {
-            "success": True,
-            "record_count": len(ehr_data),
-            "columns": list(ehr_data.columns)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error parsing CSV: {str(e)}")
-
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_drugs(patient: PatientInput):
     """Get drug recommendations with SHAP explanations."""
     global ehr_data
-    
-    if ehr_data is None or ehr_data.empty:
-        raise HTTPException(status_code=400, detail="No EHR data loaded. Please upload a CSV first.")
     
     # Calculate similarity for all records
     similarities = []
