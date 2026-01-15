@@ -17,7 +17,6 @@ import type { PatientInput } from "@/types/drug-recommender";
 interface PatientFormProps {
   onSubmit: (patient: PatientInput) => void;
   isLoading: boolean;
-  disabled: boolean;
 }
 
 const COMMON_SYMPTOMS = [
@@ -49,7 +48,7 @@ const COMMON_ALLERGIES = [
   "None",
 ];
 
-export const PatientForm = ({ onSubmit, isLoading, disabled }: PatientFormProps) => {
+export const PatientForm = ({ onSubmit, isLoading}: PatientFormProps) => {
   const [formData, setFormData] = useState<PatientInput>({
     age: 45,
     gender: "male",
@@ -263,16 +262,12 @@ export const PatientForm = ({ onSubmit, isLoading, disabled }: PatientFormProps)
           <Button
             type="submit"
             className="w-full"
-            disabled={disabled || isLoading}
+            disabled={isLoading}
           >
             {isLoading ? "Analyzing..." : "Get Drug Recommendations"}
           </Button>
           
-          {disabled && (
-            <p className="text-sm text-muted-foreground text-center">
-              Please upload an EHR dataset first
-            </p>
-          )}
+
         </form>
       </CardContent>
     </Card>
