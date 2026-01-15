@@ -49,7 +49,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 grid gap-8 lg:grid-cols-2">
+      <main className="container mx-auto px-4 py-8 space-y-10 max-w-4xl">
         {/* Patient Input */}
         <section>
           <h2 className="text-lg font-semibold mb-3">
