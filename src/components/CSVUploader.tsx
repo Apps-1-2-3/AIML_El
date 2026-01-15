@@ -1,7 +1,7 @@
-import { useCallback } from "react";
-import { Upload, FileText, X, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, FileText, X, Loader2, CheckCircle } from "lucide-react";
 
 interface CSVUploaderProps {
   onFileSelect: (file: File) => void;
@@ -10,6 +10,7 @@ interface CSVUploaderProps {
   isLoading: boolean;
   error: string | null;
   onClear: () => void;
+  disabled?: boolean;
 }
 
 export const CSVUploader = ({
@@ -19,44 +20,57 @@ export const CSVUploader = ({
   isLoading,
   error,
   onClear,
+  disabled = false,
 }: CSVUploaderProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      if (disabled) return;
+      
       const file = e.dataTransfer.files[0];
-      if (file && (file.name.endsWith(".csv") || file.name.endsWith(".xlsx"))) {
+      if (file && file.name.endsWith(".csv")) {
         onFileSelect(file);
       }
     },
-    [onFileSelect]
+    [onFileSelect, disabled]
   );
 
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        onFileSelect(file);
-      }
-    },
-    [onFileSelect]
-  );
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onFileSelect(file);
+    }
+  };
 
   if (fileName && recordCount > 0) {
     return (
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-primary" />
-            <div>
-              <p className="font-medium text-foreground">{fileName}</p>
-              <p className="text-sm text-muted-foreground">
-                {recordCount.toLocaleString()} records loaded
-              </p>
+      <Card className="border-primary/50 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">{fileName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {recordCount.toLocaleString()} records loaded
+                </p>
+              </div>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClear}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClear}>
-            <X className="h-4 w-4" />
-          </Button>
         </CardContent>
       </Card>
     );
@@ -64,41 +78,55 @@ export const CSVUploader = ({
 
   return (
     <Card
-      className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors"
+      className={`border-2 border-dashed transition-colors ${
+        disabled
+          ? "border-muted cursor-not-allowed opacity-50"
+          : "hover:border-primary/50 cursor-pointer"
+      }`}
       onDrop={handleDrop}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={handleDragOver}
+      onClick={() => !disabled && fileInputRef.current?.click()}
     >
-      <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+      <CardContent className="p-8 text-center">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={handleFileChange}
+          disabled={disabled}
+        />
+        
         {isLoading ? (
-          <>
-            <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading dataset...</p>
-          </>
-        ) : (
-          <>
-            <Upload className="h-10 w-10 text-muted-foreground mb-4" />
-            <h3 className="font-semibold text-foreground mb-2">
-              Upload EHR Dataset
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Drag and drop your CSV file here, or click to browse
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">
+              Uploading to backend...
             </p>
-            <input
-              type="file"
-              accept=".csv,.xlsx"
-              onChange={handleFileInput}
-              className="hidden"
-              id="csv-upload"
-            />
-            <Button asChild variant="outline">
-              <label htmlFor="csv-upload" className="cursor-pointer">
-                Select File
-              </label>
-            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3">
+            <div className="p-3 rounded-full bg-primary/10">
+              {error ? (
+                <FileText className="h-8 w-8 text-destructive" />
+              ) : (
+                <Upload className="h-8 w-8 text-primary" />
+              )}
+            </div>
+            <div>
+              <p className="font-medium">
+                {disabled
+                  ? "Connect backend first"
+                  : "Drop your EHR CSV file here"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                or click to browse
+              </p>
+            </div>
             {error && (
-              <p className="mt-4 text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             )}
-          </>
+          </div>
         )}
       </CardContent>
     </Card>
